@@ -1,0 +1,11 @@
+aiofiles==24.1.0
+aiogram==3.22.0
+aiohttp==3.12.15
+asyncpg==0.29.0
+loguru==0.7.2
+python-dotenv==1.0.1
+psycopg2-binary==2.9.9
+yoyo-migrations==8.2.0
+pytest==8.3.4
+pytest-asyncio==0.25.3
+pytest-mock==3.14.0
