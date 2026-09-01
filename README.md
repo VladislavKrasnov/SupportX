@@ -1,5 +1,7 @@
 # SupportX
 
+![Demo](demo.gif)
+
 Welcome to **SupportX**, the ultimate, high-performance solution for seamless customer support via Telegram. 
 
 Designed exclusively for high-load production environments, SupportX bridges the gap between your users and your support agents. It creates an intuitive, instant connection where users can send messages directly to your bot, and your team can efficiently reply from a single, organized Telegram group using forum topics.
