@@ -13,6 +13,7 @@ def test_settings_are_loaded_with_defaults():
     settings = load_settings(REQUIRED_ENVIRONMENT)
 
     assert settings.support_group_id == -100123
+    assert settings.auto_close_after_days == 7
     assert settings.internal_note_prefix == "//"
     assert settings.customer_messages_per_minute == 30
     assert settings.new_tickets_per_minute == 20

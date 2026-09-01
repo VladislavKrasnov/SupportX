@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from contextlib import suppress
 
 import asyncpg
 from aiogram import Bot, Dispatcher
@@ -15,6 +16,7 @@ from .handlers import create_router
 from .retry import RetryAfterMiddleware
 from .schema import apply_migrations
 from .staff import StaffDirectory
+from .sweeper import close_inactive_tickets_forever
 
 
 async def run_bot() -> None:
@@ -36,7 +38,17 @@ async def run_bot() -> None:
 
         dispatcher = Dispatcher(desk=desk, staff=StaffDirectory(bot, settings.support_group_id))
         dispatcher.include_router(create_router(settings))
-        await dispatcher.start_polling(bot, allowed_updates=dispatcher.resolve_used_update_types())
+
+        sweeper_task = None
+        if settings.auto_close_after_days > 0:
+            sweeper_task = asyncio.create_task(close_inactive_tickets_forever(desk, settings.auto_close_after_days))
+        try:
+            await dispatcher.start_polling(bot, allowed_updates=dispatcher.resolve_used_update_types())
+        finally:
+            if sweeper_task is not None:
+                sweeper_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await sweeper_task
     finally:
         await pool.close()
 

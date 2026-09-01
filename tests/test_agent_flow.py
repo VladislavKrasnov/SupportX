@@ -139,3 +139,18 @@ async def test_info_shows_customer_card(desk, bot, repository, agent_message):
 
     card_text = agent_message.reply.await_args.args[0]
     assert "Ann Lee" in card_text and f"<code>{CUSTOMER_ID}</code>" in card_text
+
+
+async def test_inactive_tickets_are_closed_in_batches(desk, bot, repository, settings):
+    repository.close_inactive_tickets.side_effect = [[(CUSTOMER_ID, TOPIC_ID), (AGENT_ID, 457)], []]
+
+    closed_count = await desk.close_inactive_tickets(7)
+
+    assert closed_count == 2
+    bot.send_message.assert_any_await(chat_id=CUSTOMER_ID, text=settings.texts.ticket_closed)
+    bot.send_message.assert_any_await(
+        chat_id=SUPPORT_GROUP_ID,
+        message_thread_id=TOPIC_ID,
+        text=settings.texts.closed_by_inactivity_note.format(days=7),
+    )
+    assert bot.close_forum_topic.await_count == 2

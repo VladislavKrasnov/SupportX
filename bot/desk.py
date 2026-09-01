@@ -16,6 +16,7 @@ from .throttling import FixedWindowCounter
 MISSING_TOPIC_ERROR_MARKERS = ("message thread not found", "topic_id_invalid", "topic_deleted")
 TOPIC_NOT_MODIFIED_ERROR_MARKER = "topic_not_modified"
 TOPIC_TITLE_MAX_LENGTH = 128
+INACTIVE_TICKETS_BATCH_SIZE = 100
 NEW_TICKETS_WINDOW_KEY = "new_tickets"
 PRESENT_MEMBER_STATUSES = frozenset({ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR})
 
@@ -145,6 +146,17 @@ class TicketDesk:
             return
         await message.reply(self._texts.customer_unbanned_note.format(user_id=customer_id))
         logger.info("Agent {} unbanned customer {}", message.from_user.id, customer_id)
+
+    async def close_inactive_tickets(self, inactive_days: int) -> int:
+        closed_count = 0
+        while expired := await self._repository.close_inactive_tickets(inactive_days, INACTIVE_TICKETS_BATCH_SIZE):
+            for customer_id, topic_id in expired:
+                await self._notify_customer(customer_id, self._texts.ticket_closed)
+                await self._archive_topic(
+                    topic_id, self._texts.closed_by_inactivity_note.format(days=inactive_days)
+                )
+            closed_count += len(expired)
+        return closed_count
 
     async def _resolve_open_topic(self, customer: User, message: Message) -> int | None:
         topic_id = await self._repository.touch_open_ticket(customer.id)

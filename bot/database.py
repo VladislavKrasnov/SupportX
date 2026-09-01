@@ -102,3 +102,21 @@ class Repository:
             user_id,
         )
         return unbanned_user_id is not None
+
+    async def close_inactive_tickets(self, inactive_days: int, batch_size: int) -> list[tuple[int, int]]:
+        rows = await self._pool.fetch(
+            """
+            UPDATE tickets SET is_open = FALSE
+            WHERE user_id IN (
+                SELECT user_id FROM tickets
+                WHERE is_open AND last_activity_at < now() - make_interval(days => $1)
+                ORDER BY last_activity_at
+                LIMIT $2
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING user_id, topic_id
+            """,
+            inactive_days,
+            batch_size,
+        )
+        return [(row["user_id"], row["topic_id"]) for row in rows]

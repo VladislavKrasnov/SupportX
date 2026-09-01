@@ -20,6 +20,7 @@ def settings() -> Settings:
         support_group_id=SUPPORT_GROUP_ID,
         database_url="postgresql://localhost/supportx",
         internal_note_prefix="//",
+        auto_close_after_days=7,
         customer_messages_per_minute=30,
         new_tickets_per_minute=2,
         log_level="INFO",
