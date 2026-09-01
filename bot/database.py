@@ -50,3 +50,18 @@ class DatabaseClient:
                 "DELETE FROM topics WHERE user_id = $1", 
                 user_id
             )
+
+    async def ban_user(self, user_id: int) -> None:
+        async with self._pool.acquire() as connection:
+            await connection.execute(
+                "UPDATE users SET is_banned = TRUE WHERE user_id = $1",
+                user_id
+            )
+
+    async def is_user_banned(self, user_id: int) -> bool:
+        async with self._pool.acquire() as connection:
+            row = await connection.fetchrow(
+                "SELECT is_banned FROM users WHERE user_id = $1",
+                user_id
+            )
+            return row["is_banned"] if row and row["is_banned"] is not None else False
