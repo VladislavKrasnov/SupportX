@@ -1,5 +1,5 @@
 import asyncpg
-from typing import Optional
+from typing import Optional, List, Tuple
 
 class DatabaseClient:
     def __init__(self, database_url: str):
@@ -65,3 +65,18 @@ class DatabaseClient:
                 user_id
             )
             return row["is_banned"] if row and row["is_banned"] is not None else False
+
+    async def unban_user(self, user_id: int) -> None:
+        async with self._pool.acquire() as connection:
+            await connection.execute(
+                "UPDATE users SET is_banned = FALSE WHERE user_id = $1",
+                user_id
+            )
+
+    async def get_expired_topics(self, days: int) -> List[Tuple[int, int]]:
+        async with self._pool.acquire() as connection:
+            rows = await connection.fetch(
+                "SELECT user_id, topic_id FROM topics WHERE created_at < CURRENT_TIMESTAMP - ($1 || ' days')::INTERVAL",
+                str(days)
+            )
+            return [(row["user_id"], row["topic_id"]) for row in rows]

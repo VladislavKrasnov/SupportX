@@ -14,6 +14,7 @@ class Config:
     msg_ticket_closed: str
     msg_unsupported: str
     msg_user_blocked: str
+    auto_close_topics_days: int
 
 def load_config() -> Config:
     bot_token = os.getenv("BOT_TOKEN")
@@ -32,7 +33,8 @@ def load_config() -> Config:
         msg_ticket_created=os.getenv("MSG_TICKET_CREATED", "Your ticket has been created. Please wait for an agent."),
         msg_ticket_closed=os.getenv("MSG_TICKET_CLOSED", "Your ticket has been closed."),
         msg_unsupported=os.getenv("MSG_UNSUPPORTED", "We encountered an error."),
-        msg_user_blocked=os.getenv("MSG_USER_BLOCKED", "User has blocked the bot. Message not delivered.")
+        msg_user_blocked=os.getenv("MSG_USER_BLOCKED", "User has blocked the bot. Message not delivered."),
+        auto_close_topics_days=int(os.getenv("AUTO_CLOSE_TOPICS_DAYS", "7"))
     )
 
 config = load_config()

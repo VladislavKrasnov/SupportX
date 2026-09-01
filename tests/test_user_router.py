@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock
 from aiogram.exceptions import TelegramBadRequest
-from bot.handlers import process_start_command, relay_user_message
+from bot.handlers import process_start_command, relay_user_message, process_close_command
 from bot.config import config
 
 @pytest.mark.asyncio
@@ -17,6 +17,10 @@ async def test_relay_user_message_new_topic(mock_db, mock_message, mock_bot, moc
     mock_topic.message_thread_id = 456
     mock_bot.create_forum_topic.return_value = mock_topic
     
+    mock_sent_message = AsyncMock()
+    mock_sent_message.message_id = 789
+    mock_bot.send_message.return_value = mock_sent_message
+    
     await relay_user_message(mock_message, bot=mock_bot, db_client=mock_db, logger=mock_logger)
     
     mock_db.register_user.assert_called_once_with(123)
@@ -25,6 +29,8 @@ async def test_relay_user_message_new_topic(mock_db, mock_message, mock_bot, moc
         name="User 123"
     )
     mock_db.link_topic_to_user.assert_called_once_with(123, 456)
+    mock_bot.send_message.assert_called_once()
+    mock_bot.pin_chat_message.assert_called_once()
     mock_message.answer.assert_called_once_with(config.msg_ticket_created)
     mock_bot.copy_message.assert_called_once_with(
         chat_id=config.support_group_id,
@@ -32,6 +38,21 @@ async def test_relay_user_message_new_topic(mock_db, mock_message, mock_bot, moc
         message_id=1,
         message_thread_id=456
     )
+
+@pytest.mark.asyncio
+async def test_process_close_command_with_topic(mock_db, mock_message, mock_bot, mock_logger):
+    mock_db.retrieve_topic_for_user.return_value = 456
+    await process_close_command(mock_message, bot=mock_bot, db_client=mock_db, logger=mock_logger)
+    mock_db.remove_topic_link.assert_called_once_with(123)
+    mock_bot.close_forum_topic.assert_called_once_with(chat_id=config.support_group_id, message_thread_id=456)
+    mock_message.answer.assert_called_once_with(config.msg_ticket_closed)
+
+@pytest.mark.asyncio
+async def test_process_close_command_no_topic(mock_db, mock_message, mock_bot, mock_logger):
+    mock_db.retrieve_topic_for_user.return_value = None
+    await process_close_command(mock_message, bot=mock_bot, db_client=mock_db, logger=mock_logger)
+    mock_db.remove_topic_link.assert_not_called()
+    mock_message.answer.assert_called_once_with("У вас нет открытого обращения.")
 
 @pytest.mark.asyncio
 async def test_relay_user_message_topic_creation_failure(mock_db, mock_message, mock_bot, mock_logger):

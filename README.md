@@ -40,9 +40,22 @@ Rename `.env.example` to `.env` and fill in your details:
 BOT_TOKEN=your_bot_token_here
 SUPPORT_GROUP_ID=-100123456789
 DATABASE_URL=postgresql://user:password@localhost:5432/supportx
+AUTO_CLOSE_TOPICS_DAYS=7
 ```
 
 You can fully customize the automated messages in the same `.env` file to match your brand's voice.
+Set `AUTO_CLOSE_TOPICS_DAYS=0` to disable auto-closing of inactive topics.
+
+### Commands
+
+**For Users:**
+* `/start` - Start interacting with the bot
+* `/close` - Close your current support ticket
+
+**For Admins (in Support Group):**
+* `/info` - Get user information (ID, Username, quick contact link)
+* `/ban` - Ban a user and prevent them from sending more messages
+* `/unban <user_id>` - Unban a user
 
 ### 4. Launch
 Ignite the engine:

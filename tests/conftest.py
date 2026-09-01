@@ -22,9 +22,11 @@ def mock_message():
 def mock_group_message():
     message = AsyncMock(spec=Message)
     message.chat = Chat(id=config.support_group_id, type=ChatType.SUPERGROUP)
+    message.from_user = User(id=999, is_bot=False, first_name="Admin")
     message.message_thread_id = 456
     message.message_id = 2
     message.content_type = "text"
+    message.answer = AsyncMock()
     return message
 
 @pytest.fixture
@@ -35,6 +37,7 @@ def mock_db():
     mock.link_topic_to_user = AsyncMock()
     mock.remove_topic_link = AsyncMock()
     mock.retrieve_user_for_topic = AsyncMock()
+    mock.is_user_banned.return_value = False
     return mock
 
 from unittest.mock import AsyncMock, MagicMock

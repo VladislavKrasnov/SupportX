@@ -54,15 +54,23 @@ async def relay_user_message(message: Message, bot: Bot, db_client: DatabaseClie
             await db_client.link_topic_to_user(user_id, topic_id)
             logger.info("Created new forum topic for user", user_id=user_id, topic_id=topic_id)
             
+            username_text = f"@{message.from_user.username}" if message.from_user.username else "нет"
+            commands_text = "Доступные команды:\n/close - закрыть тикет\n/ban - заблокировать\n/info - инфо"
+            text = f"Информация о пользователе:\nID: <code>{user_id}</code>\nUsername: {username_text}\n\n{commands_text}"
+            
             kb = InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="Открыть профиль пользователя", url=f"tg://user?id={user_id}")
+                InlineKeyboardButton(text="Открыть диалог", url=f"tg://openmessage?user_id={user_id}")
             ]])
-            await bot.send_message(
+            msg = await bot.send_message(
                 chat_id=config.support_group_id,
                 message_thread_id=topic_id,
-                text=f"Информация о пользователе:\nID: <code>{user_id}</code>",
+                text=text,
                 reply_markup=kb
             )
+            try:
+                await bot.pin_chat_message(chat_id=config.support_group_id, message_id=msg.message_id)
+            except Exception as e:
+                logger.error("Failed to pin message", error=str(e), topic_id=topic_id)
 
             await message.answer(config.msg_ticket_created)
         except TelegramBadRequest as e:
@@ -97,16 +105,37 @@ async def process_ban_command(message: Message, bot: Bot, db_client: DatabaseCli
     await message.answer(f"Пользователь <code>{user_id}</code> был заблокирован.")
 
 @group_router.message(Command("info"), F.chat.type == ChatType.SUPERGROUP, F.message_thread_id.is_not(None))
-async def process_info_command(message: Message, db_client: DatabaseClient, logger: Any) -> None:
+async def process_info_command(message: Message, bot: Bot, db_client: DatabaseClient, logger: Any) -> None:
     topic_id = message.message_thread_id
     user_id = await db_client.retrieve_user_for_topic(topic_id)
     if not user_id:
         return
         
+    try:
+        user_info = await bot.get_chat(user_id)
+        username_text = f"@{user_info.username}" if user_info.username else "нет"
+    except Exception:
+        username_text = "неизвестно"
+        
+    commands_text = "Доступные команды:\n/close - закрыть тикет\n/ban - заблокировать\n/info - инфо"
+    text = f"Информация о пользователе:\nID: <code>{user_id}</code>\nUsername: {username_text}\n\n{commands_text}"
+    
     kb = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="Открыть профиль пользователя", url=f"tg://user?id={user_id}")
+        InlineKeyboardButton(text="Открыть диалог", url=f"tg://openmessage?user_id={user_id}")
     ]])
-    await message.answer(f"Информация о пользователе:\nID: <code>{user_id}</code>", reply_markup=kb)
+    await message.answer(text, reply_markup=kb)
+
+@group_router.message(Command("unban"), F.chat.type == ChatType.SUPERGROUP)
+async def process_unban_command(message: Message, db_client: DatabaseClient, logger: Any) -> None:
+    args = message.text.split() if message.text else []
+    if len(args) < 2 or not args[1].isdigit():
+        await message.answer("Использование: /unban <user_id>")
+        return
+        
+    user_id = int(args[1])
+    await db_client.unban_user(user_id)
+    logger.info("Admin unbanned user", admin_id=message.from_user.id, user_id=user_id)
+    await message.answer(f"Пользователь <code>{user_id}</code> был разблокирован.")
 
 @group_router.message(F.chat.type == ChatType.SUPERGROUP, F.message_thread_id.is_not(None))
 async def relay_support_message(message: Message, bot: Bot, db_client: DatabaseClient, logger: Any) -> None:
