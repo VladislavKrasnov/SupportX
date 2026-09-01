@@ -1,5 +1,7 @@
 # SupportX
 
+![Demo](demo.gif)
+
 SupportX is a Telegram bot that turns a Telegram group into a simple help desk.
 
 Your customers write to the bot in a private chat. Each customer gets their own topic in your team's group, and anything your team writes in that topic goes back to the customer. Customers only see the bot, never your team's personal accounts.
