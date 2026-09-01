@@ -49,6 +49,8 @@ class TicketDesk:
         async with self._lock_for(customer.id):
             try:
                 topic_id = await self._resolve_open_topic(customer, message)
+                if topic_id is None:
+                    return
                 try:
                     await self._copy_to_topic(message, topic_id)
                 except TelegramBadRequest as error:
@@ -106,15 +108,55 @@ class TicketDesk:
         await self._archive_topic(topic_id, self._texts.closed_by_agent_note)
         logger.info("Agent {} closed ticket in topic {}", message.from_user.id, topic_id)
 
-    async def _resolve_open_topic(self, customer: User, message: Message) -> int:
+    async def show_customer_card(self, message: Message) -> None:
+        customer_id = await self._repository.find_customer_in_topic(message.message_thread_id)
+        if customer_id is None:
+            return
+        try:
+            customer_chat = await self._bot.get_chat(customer_id)
+            full_name, username = customer_chat.full_name, customer_chat.username
+        except TelegramAPIError:
+            full_name, username = str(customer_id), None
+        text, keyboard = self._render_customer_card(customer_id, full_name, username)
+        await message.reply(text, reply_markup=keyboard)
+
+    async def ban_customer(self, message: Message) -> None:
+        topic_id = message.message_thread_id
+        customer_id = await self._repository.find_customer_in_topic(topic_id)
+        if customer_id is None:
+            return
+        async with self._lock_for(customer_id):
+            await self._repository.ban_customer(customer_id)
+        await self._archive_topic(topic_id, self._texts.customer_banned_note.format(user_id=customer_id))
+        logger.info("Agent {} banned customer {}", message.from_user.id, customer_id)
+
+    async def unban_customer(self, message: Message, user_id_argument: str | None) -> None:
+        if user_id_argument and user_id_argument.isdecimal():
+            customer_id = int(user_id_argument)
+        elif not user_id_argument and message.is_topic_message:
+            customer_id = await self._repository.find_customer_in_topic(message.message_thread_id)
+        else:
+            customer_id = None
+        if customer_id is None:
+            await message.reply(self._texts.unban_usage_note)
+            return
+        if not await self._repository.unban_customer(customer_id):
+            await message.reply(self._texts.customer_not_found_note.format(user_id=customer_id))
+            return
+        await message.reply(self._texts.customer_unbanned_note.format(user_id=customer_id))
+        logger.info("Agent {} unbanned customer {}", message.from_user.id, customer_id)
+
+    async def _resolve_open_topic(self, customer: User, message: Message) -> int | None:
         topic_id = await self._repository.touch_open_ticket(customer.id)
         if topic_id is not None:
             return topic_id
-        previous_topic_id = await self._repository.find_topic_of_customer(customer.id)
-        if previous_topic_id is None:
+        state = await self._repository.fetch_customer_state(customer.id)
+        if state.is_banned:
+            return None
+        if state.topic_id is None:
             topic_id = await self._start_topic(customer)
         else:
-            topic_id = await self._reopen_topic(customer, previous_topic_id)
+            topic_id = await self._reopen_topic(customer, state.topic_id)
         await message.answer(self._texts.ticket_opened)
         return topic_id
 

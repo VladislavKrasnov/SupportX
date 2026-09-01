@@ -1,6 +1,6 @@
 from aiogram import F, Router
 from aiogram.enums import ChatType
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import ChatMemberUpdated, Message
 
 from .config import Settings
@@ -25,6 +25,18 @@ async def handle_agent_close(message: Message, desk: TicketDesk) -> None:
     await desk.close_by_agent(message)
 
 
+async def handle_agent_ban(message: Message, desk: TicketDesk) -> None:
+    await desk.ban_customer(message)
+
+
+async def handle_agent_unban(message: Message, command: CommandObject, desk: TicketDesk) -> None:
+    await desk.unban_customer(message, command.args.strip() if command.args else None)
+
+
+async def handle_agent_info(message: Message, desk: TicketDesk) -> None:
+    await desk.show_customer_card(message)
+
+
 async def handle_agent_message(message: Message, desk: TicketDesk) -> None:
     await desk.forward_from_agent(message)
 
@@ -47,6 +59,9 @@ def create_router(settings: Settings) -> Router:
     support_router = Router(name="support")
     support_router.message.filter(IsSupportStaff())
     support_router.message.register(handle_agent_close, Command("close"), F.is_topic_message)
+    support_router.message.register(handle_agent_ban, Command("ban"), F.is_topic_message)
+    support_router.message.register(handle_agent_unban, Command("unban"))
+    support_router.message.register(handle_agent_info, Command("info"), F.is_topic_message)
     support_router.message.register(handle_agent_message, F.is_topic_message)
 
     root_router = Router(name="supportx")

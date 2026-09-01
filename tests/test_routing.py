@@ -65,6 +65,9 @@ async def test_customer_updates_are_routed(dispatch, desk, text, expected_method
     ("text", "expected_method"),
     [
         ("/close", "close_by_agent"),
+        ("/ban", "ban_customer"),
+        ("/unban 42", "unban_customer"),
+        ("/info", "show_customer_card"),
         ("hello", "forward_from_agent"),
     ],
 )
@@ -74,11 +77,17 @@ async def test_agent_topic_updates_are_routed(dispatch, desk, text, expected_met
     getattr(desk, expected_method).assert_awaited_once()
 
 
+async def test_unban_argument_is_passed(dispatch, desk):
+    await dispatch(SUPPORT_CHAT, AGENT_ID, "/unban 42", TOPIC_ID)
+
+    assert desk.unban_customer.await_args.args[1] == "42"
+
+
 @pytest.mark.parametrize(
     ("chat", "sender_id"),
     [(SUPPORT_CHAT, MEMBER_ID), (FOREIGN_CHAT, AGENT_ID)],
 )
-@pytest.mark.parametrize("text", ["/close", "hello"])
+@pytest.mark.parametrize("text", ["/close", "/ban", "/unban 42", "hello"])
 async def test_untrusted_group_updates_are_ignored(dispatch, desk, chat, sender_id, text):
     await dispatch(chat, sender_id, text, TOPIC_ID)
 

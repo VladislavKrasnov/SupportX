@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from aiogram.exceptions import TelegramBadRequest
 
+from bot.database import CustomerState
 from tests.conftest import CUSTOMER_ID, SUPPORT_GROUP_ID, TOPIC_ID
 
 
@@ -22,7 +23,7 @@ async def test_message_to_open_ticket_is_copied_without_extra_calls(desk, bot, r
 
     await desk.forward_from_customer(customer_message)
 
-    repository.find_topic_of_customer.assert_not_awaited()
+    repository.fetch_customer_state.assert_not_awaited()
     bot.create_forum_topic.assert_not_awaited()
     bot.copy_message.assert_awaited_once_with(
         chat_id=SUPPORT_GROUP_ID, from_chat_id=CUSTOMER_ID, message_id=1, message_thread_id=TOPIC_ID
@@ -32,7 +33,7 @@ async def test_message_to_open_ticket_is_copied_without_extra_calls(desk, bot, r
 
 async def test_first_message_starts_topic_with_pinned_card(desk, bot, repository, customer_message, settings):
     repository.touch_open_ticket.return_value = None
-    repository.find_topic_of_customer.return_value = None
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=None)
     bot.create_forum_topic.return_value = MagicMock(message_thread_id=TOPIC_ID)
     bot.send_message.return_value = MagicMock(message_id=77)
 
@@ -50,7 +51,7 @@ async def test_first_message_starts_topic_with_pinned_card(desk, bot, repository
 async def test_customer_card_escapes_html_in_names(desk, bot, repository, customer_message):
     customer_message.from_user = customer_message.from_user.model_copy(update={"first_name": "<b>x</b>"})
     repository.touch_open_ticket.return_value = None
-    repository.find_topic_of_customer.return_value = None
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=None)
     bot.create_forum_topic.return_value = MagicMock(message_thread_id=TOPIC_ID)
 
     await desk.forward_from_customer(customer_message)
@@ -72,7 +73,7 @@ async def test_concurrent_first_messages_start_single_topic(desk, bot, repositor
         bound_topic.append(topic_id)
 
     repository.touch_open_ticket.side_effect = touch_open_ticket
-    repository.find_topic_of_customer.return_value = None
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=None)
     repository.bind_topic.side_effect = bind_topic
     bot.create_forum_topic.side_effect = create_forum_topic
 
@@ -82,9 +83,20 @@ async def test_concurrent_first_messages_start_single_topic(desk, bot, repositor
     assert bot.copy_message.await_count == 3
 
 
+async def test_banned_customer_is_ignored(desk, bot, repository, customer_message):
+    repository.touch_open_ticket.return_value = None
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=True, topic_id=TOPIC_ID)
+
+    await desk.forward_from_customer(customer_message)
+
+    bot.copy_message.assert_not_awaited()
+    bot.reopen_forum_topic.assert_not_awaited()
+    customer_message.answer.assert_not_awaited()
+
+
 async def test_returning_customer_reuses_closed_topic(desk, bot, repository, customer_message, settings):
     repository.touch_open_ticket.return_value = None
-    repository.find_topic_of_customer.return_value = TOPIC_ID
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=TOPIC_ID)
 
     await desk.forward_from_customer(customer_message)
 
@@ -97,7 +109,7 @@ async def test_returning_customer_reuses_closed_topic(desk, bot, repository, cus
 
 async def test_returning_customer_gets_new_topic_when_old_one_was_deleted(desk, bot, repository, customer_message):
     repository.touch_open_ticket.return_value = None
-    repository.find_topic_of_customer.return_value = TOPIC_ID
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=TOPIC_ID)
     bot.reopen_forum_topic.side_effect = bad_request("TOPIC_ID_INVALID")
     bot.create_forum_topic.return_value = MagicMock(message_thread_id=789)
 
@@ -121,7 +133,7 @@ async def test_message_is_redelivered_when_open_topic_was_deleted(desk, bot, rep
 
 async def test_topic_creation_failure_reports_to_customer(desk, bot, repository, customer_message, settings):
     repository.touch_open_ticket.return_value = None
-    repository.find_topic_of_customer.return_value = None
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=None)
     bot.create_forum_topic.side_effect = bad_request("not enough rights to create a topic")
 
     await desk.forward_from_customer(customer_message)
@@ -161,7 +173,7 @@ async def test_customer_lock_is_released_after_use(desk, repository, customer_me
 
 async def test_new_tickets_beyond_limit_are_postponed(desk, bot, repository, customer_message, settings):
     repository.touch_open_ticket.return_value = None
-    repository.find_topic_of_customer.return_value = None
+    repository.fetch_customer_state.return_value = CustomerState(is_banned=False, topic_id=None)
     bot.create_forum_topic.return_value = MagicMock(message_thread_id=TOPIC_ID)
 
     for _ in range(settings.new_tickets_per_minute + 1):

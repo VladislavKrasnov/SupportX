@@ -24,7 +24,10 @@ Your customers write to the bot in a private chat. Each customer gets their own 
 
 **Support team** (inside a customer's topic):
 
+* `/info` shows who the customer is, with a button that opens a chat with them.
 * `/close` closes the request and tells the customer.
+* `/ban` blocks the customer. The bot ignores everything they send after that.
+* `/unban` unblocks the customer. Outside their topic, use `/unban` followed by the customer's ID.
 
 ## Setting it up
 
@@ -91,7 +94,7 @@ MSG_WELCOME=👋 Здравствуйте! Напишите ваш вопрос,
 | `MSG_SLOW_DOWN` | Sent when a customer writes too fast |
 | `MSG_DESK_BUSY` | Sent when too many new requests arrive at once |
 | `MSG_TOPIC_TITLE` | Name of a new topic |
-| `MSG_CUSTOMER_CARD` | The customer card pinned in each topic |
+| `MSG_CUSTOMER_CARD` | The customer card pinned in each topic and shown by `/info` |
 | `MSG_OPEN_CHAT_BUTTON` | Label of the button on the customer card |
 | `MSG_NO_USERNAME` | Shown on the card when the customer has no username |
 | `MSG_TICKET_REOPENED_NOTE` | Posted in the topic when the customer writes again |
@@ -100,8 +103,12 @@ MSG_WELCOME=👋 Здравствуйте! Напишите ваш вопрос,
 | `MSG_ALREADY_CLOSED_NOTE` | Reply to `/close` in a topic that is already closed |
 | `MSG_NOT_DELIVERED_NOTE` | Reply when a team message could not reach the customer |
 | `MSG_CUSTOMER_BLOCKED_BOT_NOTE` | Posted in the topic when the customer has blocked the bot |
+| `MSG_CUSTOMER_BANNED_NOTE` | Reply to `/ban` |
+| `MSG_CUSTOMER_UNBANNED_NOTE` | Reply to `/unban` |
+| `MSG_CUSTOMER_NOT_FOUND_NOTE` | Reply to `/unban` with an unknown ID |
+| `MSG_UNBAN_USAGE_NOTE` | Reply to `/unban` used the wrong way |
 
-Some messages can include details in curly braces: `{full_name}`, `{username}` and `{user_id}` in the topic title and customer card, `{note_prefix}` in the customer card. The bot refuses to start if a message uses a placeholder it does not know, so a typo cannot break it later.
+Some messages can include details in curly braces: `{full_name}`, `{username}` and `{user_id}` in the topic title and customer card, `{note_prefix}` in the customer card and `{user_id}` in ban messages. The bot refuses to start if a message uses a placeholder it does not know, so a typo cannot break it later.
 
 </details>
 

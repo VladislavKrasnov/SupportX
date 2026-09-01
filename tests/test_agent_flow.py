@@ -88,3 +88,54 @@ async def test_agent_close_of_closed_ticket(desk, bot, repository, agent_message
 
     agent_message.reply.assert_awaited_once_with(settings.texts.already_closed_note)
     bot.close_forum_topic.assert_not_awaited()
+
+
+async def test_agent_bans_customer(desk, bot, repository, agent_message):
+    repository.find_customer_in_topic.return_value = CUSTOMER_ID
+
+    await desk.ban_customer(agent_message)
+
+    repository.ban_customer.assert_awaited_once_with(CUSTOMER_ID)
+    bot.close_forum_topic.assert_awaited_once_with(chat_id=SUPPORT_GROUP_ID, message_thread_id=TOPIC_ID)
+
+
+@pytest.mark.parametrize(
+    ("argument", "expected_customer_id"),
+    [("321", 321), (None, CUSTOMER_ID)],
+)
+async def test_agent_unbans_customer(desk, repository, agent_message, settings, argument, expected_customer_id):
+    repository.find_customer_in_topic.return_value = CUSTOMER_ID
+    repository.unban_customer.return_value = True
+
+    await desk.unban_customer(agent_message, argument)
+
+    repository.unban_customer.assert_awaited_once_with(expected_customer_id)
+    agent_message.reply.assert_awaited_once_with(
+        settings.texts.customer_unbanned_note.format(user_id=expected_customer_id)
+    )
+
+
+@pytest.mark.parametrize("argument", ["abc", "-5"])
+async def test_unban_rejects_invalid_argument(desk, repository, agent_message, settings, argument):
+    await desk.unban_customer(agent_message, argument)
+
+    repository.unban_customer.assert_not_awaited()
+    agent_message.reply.assert_awaited_once_with(settings.texts.unban_usage_note)
+
+
+async def test_unban_of_unknown_customer(desk, repository, agent_message, settings):
+    repository.unban_customer.return_value = False
+
+    await desk.unban_customer(agent_message, "321")
+
+    agent_message.reply.assert_awaited_once_with(settings.texts.customer_not_found_note.format(user_id=321))
+
+
+async def test_info_shows_customer_card(desk, bot, repository, agent_message):
+    repository.find_customer_in_topic.return_value = CUSTOMER_ID
+    bot.get_chat.return_value = MagicMock(full_name="Ann Lee", username=None)
+
+    await desk.show_customer_card(agent_message)
+
+    card_text = agent_message.reply.await_args.args[0]
+    assert "Ann Lee" in card_text and f"<code>{CUSTOMER_ID}</code>" in card_text

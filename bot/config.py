@@ -21,7 +21,10 @@ class Texts:
         "👤 <b>{full_name}</b>\n"
         "ID: <code>{user_id}</code>\n"
         "Username: {username}\n\n"
-        "/close — close the ticket\n\n"
+        "/close — close the ticket\n"
+        "/ban — block the customer\n"
+        "/unban — unblock the customer\n"
+        "/info — show this card\n\n"
         "Messages starting with <code>{note_prefix}</code> are internal notes and are not sent to the customer."
     )
     open_chat_button: str = "Open chat"
@@ -32,6 +35,10 @@ class Texts:
     already_closed_note: str = "This ticket is already closed."
     not_delivered_note: str = "⚠️ This message could not be delivered to the customer."
     customer_blocked_bot_note: str = "⚠️ The customer blocked the bot, so the message was not delivered. The ticket is closed."
+    customer_banned_note: str = "⛔ Customer <code>{user_id}</code> is blocked."
+    customer_unbanned_note: str = "✅ Customer <code>{user_id}</code> is unblocked."
+    customer_not_found_note: str = "Customer <code>{user_id}</code> was not found."
+    unban_usage_note: str = "Usage: <code>/unban user_id</code>, or just <code>/unban</code> inside the customer's topic."
 
 
 TEMPLATE_SAMPLE_VALUES = {"full_name": "", "user_id": 0, "username": "", "note_prefix": ""}
